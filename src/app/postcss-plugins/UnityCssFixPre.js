@@ -1,6 +1,6 @@
 const selectorParser = require('postcss-selector-parser');
 
-const FixRemEm = (root) => {
+const FixRemEm = (root, result) => {
     root.walkDecls((decl) => {
         const value = decl.value;
         if (value.includes('rem') || value.includes('em')) {
@@ -11,7 +11,7 @@ const FixRemEm = (root) => {
         }
     });
 }
-const ExtractMediaHoverRules = (root) => {
+const ExtractMediaHoverRules = (root, result) => {
     const extractedRules = [];
     
     root.walkAtRules('media', (rule) => {
@@ -28,47 +28,48 @@ const ExtractMediaHoverRules = (root) => {
       root.append(extractedRules); // Append the extracted rules to the root
     }
 }
-const RemoveUncompatiblePseudos = (root) => {
+const RemoveUncompatiblePseudos = (root, result) => {
     root.walkRules((rule) => {
-      const parser = selectorParser((selectors) => {
-        selectors.each((selector) => {
+        const parser = selectorParser((selectors) => {
             let removeRule = false;
-            selector.walkPseudos((pseudo) => {
-                if (
-                    pseudo.value === ':where' ||
-                    pseudo.value === '::before' ||
-                    pseudo.value === '::after' ||
-                    pseudo.value === ':before' ||
-                    pseudo.value === ':after' ||
-                    pseudo.value === ':input' ||
-                    pseudo.value === '::placeholder' ||
-                    pseudo.value === ':focus-visible' ||
-                    pseudo.value === ':nth-child' ||
-                    pseudo.value === ':not' ||
-                    pseudo.value === ':is' ||
-                    pseudo.value.includes('-webkit') ||
-                    pseudo.value.includes('-moz')
-                ) {
-                    removeRule = true;
-                }
+            selectors.each((selector) => {
+                selector.walkPseudos((pseudo) => {
+                    if (
+                        pseudo.value === ':where' ||
+                        pseudo.value === '::before' ||
+                        pseudo.value === '::after' ||
+                        pseudo.value === ':before' ||
+                        pseudo.value === ':after' ||
+                        pseudo.value === ':input' ||
+                        pseudo.value === '::placeholder' ||
+                        pseudo.value === ':focus-visible' ||
+                        pseudo.value === ':nth-child' ||
+                        pseudo.value === ':not' ||
+                        pseudo.value === ':is' ||
+                        pseudo.value.includes('-webkit') ||
+                        pseudo.value.includes('-moz')
+                    ) {
+                        removeRule = true;
+                    }
+                });
             });
             if (removeRule) {
                 rule.remove();
+                result.warn('Removing rule with incompatible pseudo class: ' + rule.selector);
             }
         });
-      });
 
       rule.selector = parser.processSync(rule.selector);
-      parser.processSync(rule.selector);
     });
 }
 
-const RemoveUncompatibleClasses = (root, options) => {
+const RemoveIncompatibleClasses = (root, result, options) => {
     root.walkRules((rule) => {
       const selectorsToRemove = [];
       rule.selectors.forEach((selector) => {
         if (options.selectorsToRemove.includes(selector)) {
           selectorsToRemove.push(selector);
+          result.warn('Removing incompatible selector: ' + rule.selector);
         }
       });
 
@@ -91,10 +92,11 @@ const RemoveUncompatibleClasses = (root, options) => {
     });
 }
 
-const FixDeclarations = (root, options) => {
+const FixDeclarations = (root, result, options) => {
     root.walkDecls((decl) => {
         if (options.propertiesToRemove.includes(decl.prop)) {
           decl.remove(); // Remove the declaration
+          result.warn('Removing incompatible declaration: ' + decl.prop);
           return;
         }
 
@@ -132,11 +134,11 @@ const UnityCssFixPre = (options) => {
     return {
         postcssPlugin: 'replace-invalids',
         Once (root, { result }) {
-            FixDeclarations(root, options);
-            FixRemEm(root);
-            ExtractMediaHoverRules(root);
-            RemoveUncompatiblePseudos(root);
-            RemoveUncompatibleClasses(root, options);
+            FixDeclarations(root, result, options);
+            FixRemEm(root, result);
+            ExtractMediaHoverRules(root, result);
+            RemoveUncompatiblePseudos(root, result);
+            RemoveIncompatibleClasses(root, result, options);
         }
     }
 };
