@@ -48,7 +48,7 @@ export default function Home() {
               <textarea className="textarea w-full h-[500px] textarea-bordered " value={output} readOnly></textarea>
                 <div className="mockup-code">
                   {messages.map((msg : Message, i : number) => (
-                    <pre data-prefix={i + 1} className={"bg-"+msg.type+" text-"+msg.type+"-content"}><code>{msg.text}</code></pre>
+                    <pre key={msg.type+msg.text} data-prefix={i + 1} className={"bg-"+msg.type+" text-"+msg.type+"-content"}><code>{msg.text}</code></pre>
                   ))}
                 </div>
             </div>
